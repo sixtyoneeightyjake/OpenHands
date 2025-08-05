@@ -37,10 +37,11 @@ fi
 if [ ! -f frontend/.env ]; then
     echo "📋 Creating frontend/.env from WebSocket template..."
     cp frontend/.env.websocket frontend/.env
-    # Update the .env file with correct ports
-    sed -i.bak "s/VITE_BACKEND_HOST=.*/VITE_BACKEND_HOST=${BACKEND_HOST}:${BACKEND_PORT}/g" frontend/.env
-    sed -i.bak "s/VITE_BACKEND_BASE_URL=.*/VITE_BACKEND_BASE_URL=${BACKEND_HOST}:${BACKEND_PORT}/g" frontend/.env
+    # Update the .env file with correct ports and localhost for browser access
+    sed -i.bak "s/VITE_BACKEND_HOST=.*/VITE_BACKEND_HOST=localhost:${BACKEND_PORT}/g" frontend/.env
+    sed -i.bak "s/VITE_BACKEND_BASE_URL=.*/VITE_BACKEND_BASE_URL=localhost:${BACKEND_PORT}/g" frontend/.env
     sed -i.bak "s/VITE_FRONTEND_PORT=.*/VITE_FRONTEND_PORT=${FRONTEND_PORT}/g" frontend/.env
+    # Clean up backup file
     rm -f frontend/.env.bak
 fi
 

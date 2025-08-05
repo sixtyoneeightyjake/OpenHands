@@ -59,8 +59,9 @@ docker-compose --version
    ```
 
 2. **Access the application:**
-   - Open your browser and go to: http://localhost:3000
-   - The backend API is available at: http://localhost:3000/api
+   - **Local Access**: http://localhost:3000
+   - **Backend API**: http://localhost:3000/api
+   - **External Access**: http://[YOUR_IP]:3000 (requires additional configuration - see External Access section)
 
 3. **Stop the application:**
    ```bash
@@ -219,6 +220,91 @@ docker compose -f docker-compose.websocket.yml exec openhands netstat -tlnp
 - Consistent environment
 - Easy cleanup and deployment
 
+## External Access Configuration
+
+By default, the Docker setup is configured for local access only. To enable external access via IP address or domain:
+
+### Option 1: Host Network Mode (Simplest)
+
+Modify `docker-compose.websocket.yml`:
+```yaml
+services:
+  openhands:
+    network_mode: host
+    # Remove the ports section when using host networking
+    # ports:
+    #   - "3000:3000"
+    #   - "3001:3001"
+```
+
+### Option 2: Bind to All Interfaces
+
+Modify the ports section in `docker-compose.websocket.yml`:
+```yaml
+ports:
+  - "0.0.0.0:3000:3000"  # Bind to all network interfaces
+  - "0.0.0.0:3001:3001"
+```
+
+### Option 3: Reverse Proxy (Recommended for Production)
+
+Use Nginx or Traefik for SSL termination and better security:
+
+**Nginx Configuration:**
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+    
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    
+    # WebSocket support
+    location /socket.io/ {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+### Firewall Configuration
+
+Ensure your firewall allows connections on port 3000:
+
+**Linux (ufw):**
+```bash
+sudo ufw allow 3000
+```
+
+**Linux (iptables):**
+```bash
+sudo iptables -A INPUT -p tcp --dport 3000 -j ACCEPT
+```
+
+**macOS:**
+```bash
+# Check if firewall is enabled
+sudo /usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate
+
+# Add rule if needed (replace with your application path)
+sudo /usr/libexec/ApplicationFirewall/socketfilterfw --add /usr/local/bin/docker
+```
+
 ## Advanced Usage
 
 ### Custom Workspace
@@ -243,10 +329,29 @@ export NODE_ENV=development
 
 For production use:
 
-1. Disable debug mode in `docker-compose.websocket.yml`
-2. Configure proper CORS origins
-3. Set up reverse proxy (nginx/traefik)
-4. Enable SSL/TLS termination
+1. **Disable debug mode** in `docker-compose.websocket.yml`:
+   ```yaml
+   environment:
+     - DEBUG=false
+   ```
+
+2. **Configure proper CORS origins**:
+   ```yaml
+   environment:
+     - CORS_ALLOWED_ORIGINS=https://your-domain.com
+   ```
+
+3. **Set up reverse proxy** (nginx/traefik) - see External Access section
+
+4. **Enable SSL/TLS termination**:
+   ```yaml
+   environment:
+     - VITE_USE_TLS=true
+   ```
+
+5. **Use Docker secrets** for sensitive configuration
+
+6. **Configure health checks and monitoring**
 
 ## Integration with Existing Workflow
 
